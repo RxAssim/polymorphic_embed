@@ -3,6 +3,15 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) d
     import Phoenix.HTML, only: [html_escape: 1]
     import Phoenix.HTML.Form, only: [hidden_inputs_for: 1]
 
+    def polymorphic_embed_inputs_for(form, field, type)
+        when is_atom(field) or is_binary(field) do
+      options =
+        form.options
+        |> Keyword.take([:multipart])
+
+      to_form(form.source, form, field, type, options)
+    end
+
     def polymorphic_embed_inputs_for(form, field, type, fun)
         when is_atom(field) or is_binary(field) do
       options =
@@ -36,14 +45,13 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) d
 
         errors = get_errors(changeset)
 
-        changeset =
-          %Ecto.Changeset{
-            changeset
-            | action: parent_action,
-              params: params,
-              errors: errors,
-              valid?: errors == []
-          }
+        changeset = %Ecto.Changeset{
+          changeset
+          | action: parent_action,
+            params: params,
+            errors: errors,
+            valid?: errors == []
+        }
 
         %Phoenix.HTML.Form{
           source: changeset,
