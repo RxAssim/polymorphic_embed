@@ -196,7 +196,7 @@ defmodule PolymorphicEmbedTest do
                           valid?: false,
                           errors: country_errors
                         }
-                      },
+                      }
                     },
                     %{
                       action: :insert,
@@ -208,10 +208,10 @@ defmodule PolymorphicEmbedTest do
               }} = insert_result
 
       assert %{
-        number: {"can't be blank", [validation: :required]},
-        country_code: {"can't be blank", [validation: :required]},
-        provider: {"can't be blank", [validation: :required]}
-      } = Map.new(channel_errors)
+               number: {"can't be blank", [validation: :required]},
+               country_code: {"can't be blank", [validation: :required]},
+               provider: {"can't be blank", [validation: :required]}
+             } = Map.new(channel_errors)
 
       assert [date: {"can't be blank", [validation: :required]}] = changeset.errors
       assert [date: {"can't be blank", [validation: :required]}] = errors
@@ -236,12 +236,14 @@ defmodule PolymorphicEmbedTest do
         contexts: [%{country: %{name: ["can't be blank"]}}, %{address: ["can't be blank"]}],
         date: ["can't be blank"]
       } =
-        traverse_errors_fun.(changeset,
+        traverse_errors_fun.(
+          changeset,
           fn {msg, opts} ->
             Enum.reduce(opts, msg, fn {key, value}, acc ->
-            String.replace(acc, "%{#{key}}", to_string(value))
-          end)
-        end)
+              String.replace(acc, "%{#{key}}", to_string(value))
+            end)
+          end
+        )
     end
   end
 
@@ -1064,6 +1066,73 @@ defmodule PolymorphicEmbedTest do
     end
   end
 
+  test "inputs_for/4 for embeds_many" do
+    for polymorphic? <- [false, true] do
+      reminder_module = get_module(Reminder, polymorphic?)
+
+      attrs = %{
+        date: ~U[2020-05-28 02:57:19Z],
+        text: "This is an Email reminder",
+        contexts: [
+          %{
+            __type__: "location",
+            address: "hello",
+            country: %{
+              name: "A"
+            }
+          },
+          %{
+            __type__: "location",
+            address: "world"
+          }
+        ]
+      }
+
+      changeset =
+        struct(reminder_module)
+        |> reminder_module.changeset(attrs)
+
+      contents =
+        safe_inputs_for(changeset, :contexts, :email, polymorphic?, fn f ->
+          assert f.impl == Phoenix.HTML.FormData.Ecto.Changeset
+          assert f.errors == []
+          text_input(f, :address)
+        end)
+
+      expected_contents =
+        if(polymorphic?,
+          do:
+            ~s(<input id="reminder_contexts_0___type__" name="reminder[contexts][0][__type__]" type="hidden" value="email"><input id="reminder_contexts_0_address" name="reminder[contexts][0][address]" type="text" value="hello"><input id="reminder_contexts_1___type__" name="reminder[contexts][1][__type__]" type="hidden" value="email"><input id="reminder_contexts_1_address" name="reminder[contexts][1][address]" type="text" value="world">),
+          else:
+            ~s(<input id="reminder_contexts_0_address" name="reminder[contexts][0][address]" type="text" value="hello"><input id="reminder_contexts_1_address" name="reminder[contexts][1][address]" type="text" value="world">)
+        )
+
+      assert contents == expected_contents
+
+      contents =
+        safe_inputs_for(
+          Map.put(changeset, :action, :insert),
+          :channel,
+          :email,
+          polymorphic?,
+          fn f ->
+            assert f.impl == Phoenix.HTML.FormData.Ecto.Changeset
+            text_input(f, :address)
+          end
+        )
+
+      expected_contents =
+        if(polymorphic?,
+          do:
+            ~s(<input id="reminder_channel___type__" name="reminder[channel][__type__]" type="hidden" value="email"><input id="reminder_channel_address" name="reminder[channel][address]" type="text">),
+          else:
+            ~s(<input id="reminder_channel_address" name="reminder[channel][address]" type="text">)
+        )
+
+      assert contents == expected_contents
+    end
+  end
+
   test "inputs_for/4" do
     for polymorphic? <- [false, true] do
       reminder_module = get_module(Reminder, polymorphic?)
@@ -1263,10 +1332,10 @@ defmodule PolymorphicEmbedTest do
             assert f.impl == Phoenix.HTML.FormData.Ecto.Changeset
 
             assert f.errors == [
-              number: {"can't be blank", [validation: :required]},
-              country_code: {"can't be blank", [validation: :required]},
-              provider: {"can't be blank", [validation: :required]}
-            ]
+                     number: {"can't be blank", [validation: :required]},
+                     country_code: {"can't be blank", [validation: :required]},
+                     provider: {"can't be blank", [validation: :required]}
+                   ]
 
             contents =
               safe_inputs_for(f.source, :result, nil, false, fn f ->
@@ -1299,7 +1368,11 @@ defmodule PolymorphicEmbedTest do
                 assert f.impl == Phoenix.HTML.FormData.Ecto.Changeset
 
                 if index == 0 do
-                  assert f.errors == [name: {"should be at least %{count} character(s)", [count: 3, validation: :length, kind: :min, type: :string]}]
+                  assert f.errors == [
+                           name:
+                             {"should be at least %{count} character(s)",
+                              [count: 3, validation: :length, kind: :min, type: :string]}
+                         ]
                 else
                   assert f.errors == []
                 end
@@ -1307,7 +1380,7 @@ defmodule PolymorphicEmbedTest do
                 "from safe_inputs_for #{polymorphic?}"
               end)
 
-              assert contents =~ "from safe_inputs_for #{polymorphic?}"
+            assert contents =~ "from safe_inputs_for #{polymorphic?}"
 
             "from safe_inputs_for #{polymorphic?}"
           end)
@@ -1344,7 +1417,6 @@ defmodule PolymorphicEmbedTest do
 
         contents =
           safe_inputs_for(changeset, :channel, :sms, polymorphic?, fn f ->
-
             contents =
               safe_inputs_for(f.source, :result, nil, false, fn f ->
                 text_input(f, :success)

@@ -53,6 +53,11 @@ if Code.ensure_loaded?(Phoenix.HTML) && Code.ensure_loaded?(Phoenix.HTML.Form) d
             valid?: errors == []
         }
 
+        index_string = Integer.to_string(i)
+
+        id = if(length(list_data) > 1, do: id <> "_" <> index_string, else: id)
+        name = if(length(list_data) > 1, do: name <> "[" <> index_string <> "]", else: name)
+
         %Phoenix.HTML.Form{
           source: changeset,
           impl: Phoenix.HTML.FormData.Ecto.Changeset,
